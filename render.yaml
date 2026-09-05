@@ -14,7 +14,7 @@ services:
       - key: COOKIE_SECURE
         value: "true"
       - key: CORS_ORIGINS
-        value: https://plumb-frontend.onrender.com
+        value: https://plumb-ai-resume-analyzer-2.onrender.com
       - key: MONGO_URL
         sync: false
 
@@ -25,4 +25,4 @@ services:
     staticPublishPath: frontend/build
     envVars:
       - key: REACT_APP_BACKEND_URL
-        value: https://plumb-backend.onrender.com
+        value: https://plumb-ai-resume-analyzer-1.onrender.com
