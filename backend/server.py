@@ -485,6 +485,12 @@ async def root():
 
 app.include_router(api_router)
 
+
+@app.get("/")
+async def service_status():
+    return {"message": "Plumb AI analysis engine online", "health": "/api/"}
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=os.environ.get("CORS_ORIGINS", "*").split(","),
