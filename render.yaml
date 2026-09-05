@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: plumb-backend
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn backend.server:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: DB_NAME
+        value: plumb
+      - key: JWT_SECRET
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: CORS_ORIGINS
+        value: https://plumb-frontend.onrender.com
+      - key: MONGO_URL
+        sync: false
+
+  - type: static
+    name: plumb-frontend
+    plan: free
+    buildCommand: cd frontend && npm install --legacy-peer-deps && npm run build
+    staticPublishPath: frontend/build
+    envVars:
+      - key: REACT_APP_BACKEND_URL
+        value: https://plumb-backend.onrender.com
