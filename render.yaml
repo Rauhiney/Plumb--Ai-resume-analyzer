@@ -19,8 +19,9 @@ services:
       - key: MONGO_URL
         sync: false
 
-  - type: static
+  - type: web
     name: plumb-frontend
+    runtime: static
     plan: free
     buildCommand: cd frontend && npm install --legacy-peer-deps && npm run build
     staticPublishPath: frontend/build
