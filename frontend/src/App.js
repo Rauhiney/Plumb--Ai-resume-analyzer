@@ -9,15 +9,6 @@ import AuthPage from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 
 function Protected({ children }) {
-  const { user } = useAuth();
-  if (user === null) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#07090E]">
-        <BrainCircuit className="h-8 w-8 animate-pulse text-cyan-400" />
-      </div>
-    );
-  }
-  if (!user) return <Navigate to="/auth" replace />;
   return children;
 }
 
@@ -50,7 +41,7 @@ function App() {
         <ScrollManager />
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/auth" element={<AuthPage />} />
+          <Route path="/auth" element={<Navigate to="/dashboard" replace />} />
           <Route
             path="/dashboard"
             element={
@@ -59,7 +50,7 @@ function App() {
               </Protected>
             }
           />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
         </Routes>
         <Toaster theme="dark" richColors position="bottom-right" />
       </BrowserRouter>

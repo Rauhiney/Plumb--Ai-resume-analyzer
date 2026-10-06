@@ -24,7 +24,6 @@ import docx
 
 mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
 client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=1500)
-db = client[os.environ.get("DB_NAME", "plumb")]
 
 
 class InMemoryCursor:
@@ -125,6 +124,17 @@ class InMemoryDatabase:
         self.users = InMemoryCollection()
         self.login_attempts = InMemoryCollection()
         self.analyses = InMemoryCollection()
+
+
+# Default to the in-memory store so the app still works in local/dev environments
+# without a running MongoDB instance. Startup will swap to Mongo when available.
+db = InMemoryDatabase()
+try:
+    client.admin.command("ping")
+    db = client[os.environ.get("DB_NAME", "plumb")]
+except Exception:
+    logging.getLogger(__name__).warning("MongoDB unavailable; using in-memory database")
+
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -387,7 +397,7 @@ def local_analysis(resume_text: str, target_jd: str) -> dict:
 
 
 @api_router.post("/analyze")
-async def analyze(body: AnalyzeBody, user: dict = Depends(get_current_user)):
+async def analyze(body: AnalyzeBody):
     prompt = f"RESUME:\n{body.resume_text[:15000]}"
     if body.target_jd.strip():
         prompt += f"\n\nTARGET JOB DESCRIPTION:\n{body.target_jd[:8000]}"
@@ -415,7 +425,7 @@ async def analyze(body: AnalyzeBody, user: dict = Depends(get_current_user)):
 
     doc = {
         "id": str(uuid.uuid4()),
-        "user_id": user["id"],
+        "user_id": "guest",
         "resume_excerpt": body.resume_text[:400],
         "resume_text": body.resume_text[:20000],
         "target_jd": body.target_jd[:10000] if body.target_jd.strip() else "",
@@ -428,7 +438,7 @@ async def analyze(body: AnalyzeBody, user: dict = Depends(get_current_user)):
 
 
 @api_router.post("/extract-text")
-async def extract_text(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+async def extract_text(file: UploadFile = File(...)):
     content = await file.read()
     name = (file.filename or "").lower()
     try:
@@ -454,25 +464,25 @@ def serialize_analysis(doc: dict) -> dict:
 
 
 @api_router.get("/analyses")
-async def list_analyses(user: dict = Depends(get_current_user)):
+async def list_analyses():
     cursor = db.analyses.find(
-        {"user_id": user["id"]},
+        {"user_id": "guest"},
         {"resume_text": 0, "target_jd": 0},
     ).sort("created_at", -1).limit(50)
     return [serialize_analysis(doc) async for doc in cursor]
 
 
 @api_router.get("/analyses/{analysis_id}")
-async def get_analysis(analysis_id: str, user: dict = Depends(get_current_user)):
-    doc = await db.analyses.find_one({"id": analysis_id, "user_id": user["id"]})
+async def get_analysis(analysis_id: str):
+    doc = await db.analyses.find_one({"id": analysis_id, "user_id": "guest"})
     if not doc:
         raise HTTPException(status_code=404, detail="Analysis not found")
     return serialize_analysis(doc)
 
 
 @api_router.delete("/analyses/{analysis_id}")
-async def delete_analysis(analysis_id: str, user: dict = Depends(get_current_user)):
-    result = await db.analyses.delete_one({"id": analysis_id, "user_id": user["id"]})
+async def delete_analysis(analysis_id: str):
+    result = await db.analyses.delete_one({"id": analysis_id, "user_id": "guest"})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Analysis not found")
     return {"ok": True}

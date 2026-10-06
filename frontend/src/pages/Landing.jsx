@@ -65,7 +65,7 @@ export default function Landing() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const goApp = () => navigate(user ? "/dashboard" : "/auth");
+  const goApp = () => navigate("/dashboard");
 
   return (
     <div className="relative min-h-screen bg-[#07090E] text-slate-100">
@@ -90,7 +90,7 @@ export default function Landing() {
           onClick={goApp}
           className="border border-cyan-400 bg-cyan-400/10 px-5 py-2 font-code text-xs font-semibold uppercase tracking-[0.2em] text-cyan-400 transition-colors hover:bg-cyan-400 hover:text-black"
         >
-          {user ? "Open Console" : "Access Terminal"}
+          {user ? "Open Console" : "Open Console"}
         </motion.button>
       </header>
 

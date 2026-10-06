@@ -1,33 +1,31 @@
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
-import { api } from "../lib/api";
+import { createContext, useContext, useState, useCallback } from "react";
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null); // null = checking, false = guest
+  const [user] = useState({
+    id: "guest",
+    name: "Guest User",
+    email: "guest@plumb.local",
+    role: "guest",
+  });
 
-  useEffect(() => {
-    api
-      .get("/auth/me")
-      .then((res) => setUser(res.data))
-      .catch(() => setUser(false));
-  }, []);
+  const login = useCallback(async () => ({
+    id: "guest",
+    name: "Guest User",
+    email: "guest@plumb.local",
+    role: "guest",
+  }), []);
 
-  const login = useCallback(async (email, password) => {
-    const res = await api.post("/auth/login", { email, password });
-    setUser(res.data);
-    return res.data;
-  }, []);
-
-  const register = useCallback(async (name, email, password) => {
-    const res = await api.post("/auth/register", { name, email, password });
-    setUser(res.data);
-    return res.data;
-  }, []);
+  const register = useCallback(async () => ({
+    id: "guest",
+    name: "Guest User",
+    email: "guest@plumb.local",
+    role: "guest",
+  }), []);
 
   const logout = useCallback(async () => {
-    await api.post("/auth/logout");
-    setUser(false);
+    return null;
   }, []);
 
   return (
