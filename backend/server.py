@@ -14,17 +14,11 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt
 import jwt
-from bson import ObjectId
 from fastapi import APIRouter, Depends, FastAPI, File, HTTPException, Request, Response, UploadFile
-from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr, Field
 from pypdf import PdfReader
 from starlette.middleware.cors import CORSMiddleware
 import docx
-
-mongo_url = os.environ.get("MONGO_URL", "mongodb://localhost:27017")
-client = AsyncIOMotorClient(mongo_url, serverSelectionTimeoutMS=1500)
-
 
 class InMemoryCursor:
     def __init__(self, documents: list[dict]):
@@ -66,7 +60,7 @@ class InMemoryCollection:
 
     async def insert_one(self, document: dict):
         document = dict(document)
-        document.setdefault("_id", ObjectId())
+        document.setdefault("_id", str(uuid.uuid4()))
         self.documents.append(document)
 
         class InsertResult:
@@ -78,7 +72,7 @@ class InMemoryCollection:
         document = next((item for item in self.documents if self.matches(item, query)), None)
         if document is None and upsert:
             document = dict(query)
-            document["_id"] = ObjectId()
+            document["_id"] = str(uuid.uuid4())
             self.documents.append(document)
         if document is None:
             return None
@@ -126,15 +120,8 @@ class InMemoryDatabase:
         self.analyses = InMemoryCollection()
 
 
-# Default to the in-memory store so the app still works in local/dev environments
-# without a running MongoDB instance. Startup will swap to Mongo when available.
+# In-memory storage only. No MongoDB dependency remains.
 db = InMemoryDatabase()
-try:
-    client.admin.command("ping")
-    db = client[os.environ.get("DB_NAME", "plumb")]
-except Exception:
-    logging.getLogger(__name__).warning("MongoDB unavailable; using in-memory database")
-
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -207,7 +194,7 @@ async def get_current_user(request: Request) -> dict:
         payload = jwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
         if payload.get("type") != "access":
             raise HTTPException(status_code=401, detail="Invalid token type")
-        user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
+        user = await db.users.find_one({"_id": payload["sub"]})
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
         return public_user(user)
@@ -285,7 +272,7 @@ async def refresh(request: Request, response: Response):
             raise HTTPException(status_code=401, detail="Invalid token type")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid refresh token")
-    user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
+    user = await db.users.find_one({"_id": payload["sub"]})
     if not user:
         raise HTTPException(status_code=401, detail="User not found")
     secure = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
@@ -530,11 +517,8 @@ async def seed_users():
 @app.on_event("startup")
 async def startup():
     global db
-    try:
-        await client.admin.command("ping")
-    except Exception:
-        db = InMemoryDatabase()
-        logger.warning("MongoDB unavailable; using in-memory database")
+    db = InMemoryDatabase()
+    logger.info("Using in-memory database")
     await db.users.create_index("email", unique=True)
     await db.login_attempts.create_index("identifier")
     await db.analyses.create_index([("user_id", 1), ("created_at", -1)])
@@ -572,4 +556,4 @@ async def startup():
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
-    client.close()
+    return None
